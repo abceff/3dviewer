@@ -2,59 +2,54 @@
 
 int main() {
     data DATA;
+    main_function("example.obj", &DATA);
+
+    // Проверка
+    for (int i = 0; i < DATA.count_of_vertexes * 3; i++) {
+        printf("%lf ", DATA.matrix_1d[i]);
+    }
+    printf("\n");
+    for (int i = 0; i < DATA.vertexes_connections_counter; i++) {
+        printf("%d ", DATA.vertexes_connections[i]);
+    }
+
+    // Очистка
+    free(DATA.matrix_1d);
+    free(DATA.vertexes_connections);
+}
+
+int main_function(char* filename, data* DATA) {
+    int return_value = OK;
     FILE* f;
-    f = fopen("example.obj", "r");
+    f = fopen(filename, "r");
     if (f) {
         // считаем count_of_vertexes и count_of_facets
-        DATA.count_of_vertexes = 0;
-        DATA.count_of_facets = 0;
-        count_vertexes_and_facets(f, &DATA);
-        DATA.matrix_3d.rows = DATA.count_of_vertexes + 1;
-        DATA.matrix_3d.cols = 3;
-        // Выделям память для matrix_3d
-        DATA.matrix_3d.matrix = malloc(DATA.matrix_3d.rows * sizeof(double*));
-        for (int i = 1; i < DATA.matrix_3d.rows; i++) {
-            DATA.matrix_3d.matrix[i] =
-                malloc(DATA.matrix_3d.cols * sizeof(double));
-        }
+        count_vertexes_and_facets(f, DATA);
+        // Выделям память для matrix_1d
+        DATA->matrix_1d =
+            malloc(DATA->count_of_vertexes * 3 * sizeof(double*));
         // Выделяем память для poligons
-        DATA.polygons = malloc((DATA.count_of_facets + 1) * sizeof(polygon_t));
+        DATA->vertexes_connections =
+            malloc((DATA->vertexes_connections_counter) * sizeof(int));
 
         // заносим в структуру vertexes и facets
         fseek(f, 0L, SEEK_SET);
-        parse(f, &DATA);
-
-        // Проверка
-        for (int i = 1; i < DATA.matrix_3d.rows; i++) {
-            for (int j = 0; j < DATA.matrix_3d.cols; j++) {
-                printf("%lf ", DATA.matrix_3d.matrix[i][j]);
-            }
-            printf("\n");
-        }
-        for (int i = 1; i < DATA.count_of_facets + 1; i++) {
-            for (int j = 0; j < DATA.polygons[i].numbers_of_vertexes_in_facets; j++) {
-                printf("%d ", DATA.polygons[i].vertexes[j]);
-            }
-            printf("\n");
-        }
-
-        // Очистка
-        for (int i = 0; i < DATA.count_of_vertexes + 1; i++)
-            free(DATA.matrix_3d.matrix[i]);
-        free(DATA.matrix_3d.matrix);
-
-        for (int i = 1; i < DATA.count_of_facets + 1; i++)
-            free(DATA.polygons[i].vertexes);
-        free(DATA.polygons);
+        parse(f, DATA);
+    } else {
+        return_value = ERROR;
     }
 
-    return 0;
+    return return_value;
 }
 
 void count_vertexes_and_facets(FILE* f, data* DATA) {
     char c;
     int line_start_flag = TRUE;
     int hash_flag = FALSE;
+    int f_flag = FALSE;
+    DATA->count_of_vertexes = 0;
+    DATA->vertexes_connections_counter = 0;
+    int count_of_facets = 0;
     while ((c = fgetc(f)) != EOF) {
         if (c == '#') hash_flag = TRUE;
         if (c != '\n' && hash_flag == TRUE) {
@@ -64,37 +59,46 @@ void count_vertexes_and_facets(FILE* f, data* DATA) {
             DATA->count_of_vertexes++;
         }
         if (c == 'f' && line_start_flag == TRUE && hash_flag == FALSE) {
-            DATA->count_of_facets++;
+            count_of_facets++;
+            f_flag = TRUE;
+        }
+        if (c == ' ' && f_flag == TRUE) {
+            DATA->vertexes_connections_counter++;
         }
         if (c == '\n') {
             hash_flag = FALSE;
+            f_flag = FALSE;
             line_start_flag = TRUE;
             continue;
         } else {
             line_start_flag = FALSE;
         }
     }
+    DATA->vertexes_connections_counter =
+        2 * (DATA->vertexes_connections_counter - count_of_facets);
 }
 
 void parse(FILE* f, data* DATA) {
     char c;
     int line_start_flag = TRUE;
     int hash_flag = FALSE;
-    int vertexes_counter = 1;
-    int facets_counter = 1;
+    int vertexes_counter = 0;
+    int facets_counter = 0;
     while ((c = fgetc(f)) != EOF) {
         if (c == '#') hash_flag = TRUE;
         if (c != '\n' && hash_flag == TRUE) {
             continue;
         }
         if (c == 'v' && line_start_flag == TRUE && hash_flag == FALSE) {
-            for (int j = 0; j < DATA->matrix_3d.cols; j++)
-                fscanf(f, " %lf", &DATA->matrix_3d.matrix[vertexes_counter][j]);
+            fscanf(f, " %lf", &DATA->matrix_1d[vertexes_counter]);
+            vertexes_counter++;
+            fscanf(f, " %lf", &DATA->matrix_1d[vertexes_counter]);
+            vertexes_counter++;
+            fscanf(f, " %lf", &DATA->matrix_1d[vertexes_counter]);
             vertexes_counter++;
         }
         if (c == 'f' && line_start_flag == TRUE && hash_flag == FALSE) {
-            parse_polygon(f, DATA, facets_counter);
-            facets_counter++;
+            parse_polygon(f, DATA, &facets_counter);
             fseek(f, -1, SEEK_CUR);
         }
         if (c == '\n') {
@@ -107,10 +111,9 @@ void parse(FILE* f, data* DATA) {
     }
 }
 
-void parse_polygon(FILE* f, data* DATA, int facets_counter) {
+void parse_polygon(FILE* f, data* DATA, int* facets_counter) {
     int space_flag = FALSE;
     char* str = calloc(1024, sizeof(char));
-    DATA->polygons[facets_counter].numbers_of_vertexes_in_facets = 0;
     fscanf(f, "%[^\n]%*1[\n]", str);
     int str_len = (int)strlen(str);
     for (int i = 0; i < str_len; i++) {
@@ -118,21 +121,22 @@ void parse_polygon(FILE* f, data* DATA, int facets_counter) {
         if (str[i] == ' ') space_flag = 2;
 
         if (str[i] - '0' >= 0 && str[i] - '0' <= 9 && space_flag == TRUE) {
-            DATA->polygons[facets_counter].numbers_of_vertexes_in_facets++;
+            if (*facets_counter % 2 == 0) {
+                sscanf(str + i, "%d",
+                       &DATA->vertexes_connections[*facets_counter]);
+                (*facets_counter)++;
+            } else {
+                sscanf(str + i, "%d",
+                       &DATA->vertexes_connections[*facets_counter]);
+                (*facets_counter)++;
+                sscanf(str + i, "%d",
+                       &DATA->vertexes_connections[*facets_counter]);
+                (*facets_counter)++;
+            }
             space_flag = FALSE;
         }
     }
-    DATA->polygons[facets_counter].vertexes =
-        malloc(DATA->polygons[facets_counter].numbers_of_vertexes_in_facets *
-               sizeof(int));
+    (*facets_counter)--;
 
-    int vertexes_counter = 0;
-    for (int i = 0; i < str_len; i++) {
-        if (str[i] == ' ') {
-            sscanf(str + i, "%d", &DATA->polygons[facets_counter].vertexes[vertexes_counter]);
-            vertexes_counter++;
-        }
-    }
-    
     free(str);
 }

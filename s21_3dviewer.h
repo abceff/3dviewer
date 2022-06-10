@@ -7,23 +7,13 @@ enum { OK, ERROR };
 enum { FALSE, TRUE };
 
 typedef struct {
-    double** matrix;
-    int rows;
-    int cols;
-} matrix_t;
-
-typedef struct {
-    int* vertexes;
-    int numbers_of_vertexes_in_facets;
-} polygon_t;
-
-typedef struct {
+    double* matrix_1d;
     int count_of_vertexes;
-    int count_of_facets;
-    matrix_t matrix_3d;
-    polygon_t* polygons;
+    int* vertexes_connections;
+    int vertexes_connections_counter;
 } data;
 
 void count_vertexes_and_facets(FILE* f, data* DATA);
 void parse(FILE* f, data* DATA);
-void parse_polygon(FILE* f, data* DATA, int facets_counter);
+void parse_polygon(FILE* f, data* DATA, int* facets_counter);
+int main_function(char* filename, data* DATA);
