@@ -39,7 +39,7 @@ int main() {
         }
 
         // Очистка
-        for (int i = 0; i < DATA.matrix_3d.rows + 1; i++)
+        for (int i = 0; i < DATA.count_of_vertexes + 1; i++)
             free(DATA.matrix_3d.matrix[i]);
         free(DATA.matrix_3d.matrix);
 
