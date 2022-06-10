@@ -14,7 +14,7 @@ typedef struct {
 
 typedef struct {
     int* vertexes;
-    int numbers_of_vertexes_int_facets;
+    int numbers_of_vertexes_in_facets;
 } polygon_t;
 
 typedef struct {
@@ -25,5 +25,5 @@ typedef struct {
 } data;
 
 void count_vertexes_and_facets(FILE* f, data* DATA);
-void parse_vertexes(FILE* f, data DATA);
-void parse_facets(FILE* f, data DATA);
+void parse(FILE* f, data* DATA);
+void parse_polygon(FILE* f, data* DATA, int facets_counter);
